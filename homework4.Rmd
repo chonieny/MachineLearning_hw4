@@ -79,6 +79,24 @@ vip(tree5)
 The final tree I chose has a size of 4. The interpretation of the bottom right terminal node is that for observations with `lcavol` (log cancer volume) that are greater than or equal to 2.5, the value of response (log prostate specific antigen) is predicted to be 4. 20% of the data correspond to this bottom right terminal node. 
 
 
+## 1(c) bagging
+```{r}
+# perform bagging 
+bagging <- ranger(lpsa~., Prostate[trRows,],
+                  mtry = 8,
+                  importance = "permutation",
+                  min.node.size = 25,
+                  scale.permutation.importance = TRUE)
+barplot(sort(ranger::importance(bagging), decreasing = FALSE), 
+        las = 2, horiz = TRUE, cex.names = 0.7,
+        col = colorRampPalette(colors = c("darkred","white","darkblue"))(19))
+```
+
+For bagging, we do not have to tune the `mtry` parameter. 
+The variable importance plot is shown above.
+'lcavol' is the most important predictor, 'lweight' is the second most important one, and 'pgg45' is the third important predictor. Meanwhile, 'age' is the least important predictor. 
+
+
 
 
 
