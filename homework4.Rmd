@@ -23,6 +23,7 @@ library(lasso2)
 library(tidyverse) # data manipulation
 library(ISLR) # data Problem 2
 library(patchwork)
+library(vip)
 ```
 
 ## 1(a)
@@ -69,6 +70,13 @@ rpart.fit$bestTune
 ```
 The optimal tree size is 4. 
 
+## 1(b) plot of the final tree
+```{r}
+tree5 <- prune(tree1, cp = 0.05081357)
+rpart.plot(tree5)
+vip(tree5)
+```
+The final tree I chose has a size of 4. The interpretation of the bottom right terminal node is that for observations with `lcavol` (log cancer volume) that are greater than or equal to 2.5, the value of response (log prostate specific antigen) is predicted to be 4. 20% of the data correspond to this bottom right terminal node. 
 
 
 
