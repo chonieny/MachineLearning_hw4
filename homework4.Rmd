@@ -24,3 +24,55 @@ library(tidyverse) # data manipulation
 library(ISLR) # data Problem 2
 library(patchwork)
 ```
+
+## 1(a)
+Fit a regression tree with lpsa as the response and the other variables as predictors.
+```{r, message=F}
+set.seed(1)
+data(Prostate)
+Prostate <-na.omit(Prostate)
+
+# partition the dataset 
+trRows <- createDataPartition(Prostate$lpsa,
+                              p =0.75, list =F)
+
+tree1 <- rpart(formula = lpsa ~ . , 
+               data = Prostate, subset = trRows,
+               control = rpart.control(cp = 0))
+printcp(tree1)
+cpTable <- tree1$cptable
+plotcp(tree1)
+
+# tree using lowest cross validation error 
+minErr <- which.min(cpTable[,4])
+tree3 <- prune(tree1, cp = cpTable[minErr,1])
+rpart.plot(tree3)
+
+# tree using the 1SE rule 
+tree4 <- prune(tree1, cp = cpTable[cpTable[,4]<cpTable[minErr,4]+cpTable[minErr,5],1][1])
+rpart.plot(tree4)
+```
+Tree size of 6 corresponds to the lowest cross-validation error. Tree size of 4 is obtained using the 1 SE rule. 
+Thus, the sizes are different. 
+
+```{r}
+# use caret to do cross validation
+set.seed(1)
+ctrl <- trainControl(method = "cv")
+rpart.fit <- train(lpsa~., Prostate[trRows,], 
+                   method = "rpart",
+                   tuneGrid = data.frame(cp = exp(seq(-6,-2, length = 50))),
+                   trControl = ctrl)
+ggplot(rpart.fit, highlight = TRUE)
+rpart.plot(rpart.fit$finalModel)
+rpart.fit$bestTune
+```
+The optimal tree size is 4. 
+
+
+
+
+
+
+
+
