@@ -152,6 +152,125 @@ summary(resamp)
 ```
 I would use ensemble methods rather than a single regression tree to predict PSA level, because ensemble methods show higher prediction accuracy. Among the ensemble methods, bagging is a special case of random forest in which mtry equals the total number of predictors, which is 8 in this assignment. According to the tuning process of random forest, the best mtry shows as 7, which is smaller than 8. This indicates random forest is better than bagging. Here, I compare regression tree, random forest, and boosting using cross validation. It shows that Boosting has lower mean cross-validation RMSE than that of random forest, which indicates that it has the best prediction accuracy. Therefore, I will choose the boosting model to predict PSA level.
 
+## 2(a) classification tree
+```{r}
+data(OJ)
+oj <-
+  as.tibble(OJ) %>% 
+  mutate(Store7 = recode(Store7, '1' = 'Yes', '2' = 'No'),
+         Store7 = as.numeric(Store7))
+#split the data into training and test sets
+set.seed(1)
+rowTrain <- createDataPartition(y = oj$Purchase,
+                                p = 799/1070,
+                                list = FALSE)
+train_df = oj[rowTrain,]
+test_df = oj[-rowTrain,]
+dim(train_df)
+```
+
+```{r}
+ctrl <- trainControl(method = "cv",
+                     summaryFunction = twoClassSummary,
+                     classProbs = TRUE)
+set.seed(1)
+rpart.fit <- train(Purchase~., train_df, 
+                   method = "rpart",
+                   tuneGrid = data.frame(cp = exp(seq(-20,-2, len = 50))),
+                   trControl = ctrl,
+                   metric = "ROC")
+
+rpart.fit$bestTune
+ggplot(rpart.fit, highlight = TRUE)
+# Plot of the final model
+rpart.plot(rpart.fit$finalModel)
 
 
+test_df$probCH = predict(rpart.fit$finalModel, newdata = test_df, type = "prob")[,1]
+test_df$pred = if_else(test_df$probCH > 0.5, 'CH', 'MM')
+# Classification error rate
+1 - mean(test_df$pred == test_df$Purchase)
+```
+The test classification error rate is 0.1851852. 
+
+
+## 2(b) random forest
+```{r}
+rf.grid <- expand.grid(mtry = seq(4,12, by=1),
+                       splitrule = "gini",
+                       min.node.size = seq(20,55, by=3))
+set.seed(1)
+rf.fit <- train(Purchase~., train_df,
+                method = "ranger",
+                tuneGrid = rf.grid,
+                metric = "ROC",
+                trControl = ctrl)
+
+rf.fit$bestTune
+ggplot(rf.fit, highlight = TRUE)
+
+rf.pred <- predict(rf.fit, newdata = test_df, type = "prob")[,1]
+pred_rf = if_else(rf.pred > 0.5, 'CH', 'MM')
+# test error rate
+1 - mean(pred_rf == test_df$Purchase)
+
+```
+The test error rate is 0.17. 
+
+##### variable importance
+```{r}
+set.seed(1)
+rf2.final.per <- ranger(Purchase~., train_df, 
+                        mtry = 9, 
+                        min.node.size = 41,
+                        splitrule = "gini",
+                        importance = "permutation",
+                        scale.permutation.importance = TRUE) 
+barplot(sort(ranger::importance(rf2.final.per), decreasing = FALSE), 
+        las = 2, horiz = TRUE, cex.names = 0.7,
+        col = colorRampPalette(colors = c("cyan","blue"))(8))
+
+set.seed(1)
+rf2.final.imp <- ranger(Purchase~., train_df, 
+                        mtry = 9, 
+                        splitrule = "gini",
+                        min.node.size = 41,
+                        importance = "impurity") 
+barplot(sort(ranger::importance(rf2.final.imp), decreasing = FALSE), 
+        las = 2, horiz = TRUE, cex.names = 0.7,
+        col = colorRampPalette(colors = c("cyan","blue"))(8))
+```
+I can see that the most important variable is 'LoyalCH', and the second most important variable is 'PriceDiff'. Next, the 'ListPriceDiff' variable is important. 
+The least important variable is 'SpecialMM'. 
+
+## 2(c) boosting
+```{r}
+gbmA.grid <- expand.grid(n.trees = c(2000,3000,4000),
+                         interaction.depth = 1:6,
+                         shrinkage = c(0.001,0.003,0.005),
+                         n.minobsinnode = 1)
+set.seed(1)
+
+gbmA.fit <- train(Purchase~., train_df,
+                 tuneGrid = gbmA.grid,
+                 trControl = ctrl,
+                 method = "gbm",
+                 distribution = "adaboost",
+                 metric = "ROC",
+                 verbose = FALSE)
+
+ggplot(gbmA.fit, highlight = TRUE)
+gbmA.pred <- predict(gbmA.fit, newdata = test_df, type = "prob")[,1]
+class_gbmA = if_else(gbmA.pred > 0.5, 'CH', 'MM')
+# test error rate
+1 - mean(class_gbmA == test_df$Purchase)
+```
+The test error rate is 0.1889. 
+
+##### variable importance
+```{r}
+summary(gbmA.fit$finalModel, las = 2, cBars = 19, cex.names = 0.6)
+```
+The most important variable is 'LoyalCH', and the second most important variable is 'PriceDiff'. Next, 'SalePriceMM' is the third most important variable. 
+The least important variable seems to be 'Special CH'. 
 
