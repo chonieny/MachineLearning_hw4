@@ -96,8 +96,61 @@ For bagging, we do not have to tune the `mtry` parameter.
 The variable importance plot is shown above.
 'lcavol' is the most important predictor, 'lweight' is the second most important one, and 'pgg45' is the third important predictor. Meanwhile, 'age' is the least important predictor. 
 
+## 1(d) random forest 
+```{r}
+rf.grid <- expand.grid(mtry = 1:8, 
+                       splitrule = "variance",
+                       min.node.size = 1:30)
+rf.fit <- train(lpsa~., Prostate[trRows,],
+                method = "ranger",
+                tuneGrid = rf.grid,
+                trControl = ctrl)
+ggplot(rf.fit, highlight = TRUE)
 
 
+rf.final.per <- ranger(lpsa ~ . , 
+                        Prostate[trRows,],
+                        mtry = rf.fit$bestTune[[1]], 
+                        splitrule = "variance",
+                        min.node.size = rf.fit$bestTune[[3]],
+                        importance = "permutation",
+                        scale.permutation.importance = TRUE) 
+
+barplot(sort(ranger::importance(rf.final.per), decreasing = FALSE), 
+        las = 2, horiz = TRUE, cex.names = 0.7,
+        col = colorRampPalette(colors = c("cyan","blue"))(19))
+```
+'lcavol' is the most important predictor, 'lweight' is the second most important predictor, and 'pgg45' is the third most important one. Meanwhile, 'age' is the least important predictor. 
+
+## 1(e) boosting 
+```{r}
+set.seed(1)
+gbm.grid <- expand.grid(n.trees = c(2000,3000,4000),
+                        interaction.depth = 1:4,
+                        shrinkage = c(0.001,0.003,0.005),
+                        n.minobsinnode = c(1,10))
+gbm.fit <- train(lpsa ~ . , 
+                 Prostate[trRows,], 
+                 method = "gbm",
+                 tuneGrid = gbm.grid,
+                 trControl = ctrl,
+                 verbose = FALSE)
+
+ggplot(gbm.fit, highlight = TRUE)
+gbm.fit$bestTune
+
+# variable importance
+summary(gbm.fit$finalModel, las = 2, cBars = 19, cex.names = 0.6)
+```
+I can see that 'lcavol' is the most important variable. 'lweight' is the second important variable and 'pgg45' is the third important variable. 'gleason' is the least important variable. 
+
+## 1(f) model selection
+```{r}
+resamp <- resamples(list(gbm = gbm.fit, rf = rf.fit, rpart = rpart.fit))
+summary(resamp)
+
+```
+I would use ensemble methods rather than a single regression tree to predict PSA level, because ensemble methods show higher prediction accuracy. Among the ensemble methods, bagging is a special case of random forest in which mtry equals the total number of predictors, which is 8 in this assignment. According to the tuning process of random forest, the best mtry shows as 7, which is smaller than 8. This indicates random forest is better than bagging. Here, I compare regression tree, random forest, and boosting using cross validation. It shows that Boosting has lower mean cross-validation RMSE than that of random forest, which indicates that it has the best prediction accuracy. Therefore, I will choose the boosting model to predict PSA level.
 
 
 
