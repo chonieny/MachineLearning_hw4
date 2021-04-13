@@ -1,0 +1,26 @@
+---
+title: "Homework 4"
+author: Na Yun Cho
+output: pdf_document
+---
+
+
+```{r}
+library(ISLR)
+library(mlbench)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(party)
+library(partykit)
+library(plotmo)
+library(pROC)
+library(randomForest)
+library(ranger)
+library(gbm)
+library(pdp)
+library(lasso2)
+library(tidyverse) # data manipulation
+library(ISLR) # data Problem 2
+library(patchwork)
+```
